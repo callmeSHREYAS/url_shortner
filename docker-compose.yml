@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql-url-shortner
+
+    restart: always
+
+    environment:
+      MYSQL_ROOT_PASSWORD: myrootpassword
+      MYSQL_DATABASE: url_db
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  url-shortner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: url-shortner-2
+
+    restart: always
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    ports:
+      - "8081:8081"
+
+    environment:
+      SERVER_PORT: 8081
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: myrootpassword
+
+volumes:
+  mysql-data:
