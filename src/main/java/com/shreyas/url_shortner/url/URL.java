@@ -17,6 +17,7 @@ public class URL {
     private String name;
     private String url;
     private String shortCode;
+    private int tot_Clicks;
 
     public URL() {
     }
@@ -51,5 +52,13 @@ public class URL {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public int getTot_Clicks() {
+        return tot_Clicks;
+    }
+
+    public void setTot_Clicks(int tot_Clicks) {
+        this.tot_Clicks = tot_Clicks;
     }
 }

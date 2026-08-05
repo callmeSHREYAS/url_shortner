@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 import java.util.List;
 
-@RestController  
+@RestController
 @RequestMapping("/api/v1/url") // Fixed: Added leading slash for explicit routing
 public class Controller {
 
@@ -22,14 +22,14 @@ public class Controller {
     public String createURL(@RequestBody URL url) {
         String shortCode = urlService.generateShortCode(url.getUrl());
         url.setShortCode(shortCode);
-        urlRepository.save(url); 
+        urlRepository.save(url);
         return shortCode;
     }
 
     // GET: Retrieve all URLs
     @GetMapping
     public List<URL> getAllURl() {
-        return urlRepository.findAll(); 
+        return urlRepository.findAll();
     }
 
     // GET: Retrieve specific URL by ID
@@ -37,12 +37,22 @@ public class Controller {
     public URL getUrlByID(@PathVariable int id) {
         return urlRepository.findById(id).orElse(null);
     }
-    
+
+    // DELETE: Remove a URL by ID
+    @DeleteMapping("/delete/{id}")
+    public void deleteUrl(@PathVariable int id) {
+        urlRepository.deleteById(id);
+    }
+
     // GET: Redirect short code to original target URL
     @GetMapping("/{shortned_url}")
     public RedirectView getMethodName(@PathVariable String shortned_url) {
         return urlRepository.findByShortCode(shortned_url)
-                .map(url -> new RedirectView(url.getUrl()))
-                .orElse(null); 
+                .map(url -> {
+                    url.setTot_Clicks(url.getTot_Clicks() + 1);
+                    urlRepository.save(url);
+                    return new RedirectView(url.getUrl());
+                })
+                .orElse(null);
     }
 }

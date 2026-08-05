@@ -26,3 +26,17 @@ button {
 .card a {
     text-decoration: none;
 }
+
+.actions {
+    margin-top: 12px;
+}
+
+.delete-btn {
+    background-color: #c62828;
+    border: none;
+    color: white;
+}
+
+.delete-btn:hover {
+    background-color: #a61f1f;
+}

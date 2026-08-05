@@ -25,32 +25,45 @@ async function createUrl() {
     loadUrls();
 }
 
+async function deleteUrl(id) {
+    const response = await fetch(`/api/v1/url/delete/${id}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        alert("URL was not deleted");
+        return;
+    }
+
+    loadUrls();
+}
+
 async function loadUrls() {
 
-    const response = await fetch("api/v1/url");
+    const response = await fetch("/api/v1/url");
 
     const urls = await response.json();
 
     const container = document.getElementById("url-list");
+    const template = document.getElementById("url-card-template");
 
     container.innerHTML = "";
 
     urls.forEach(url => {
+        const card = template.content.cloneNode(true);
+        const shortUrl = `${window.location.origin}/api/v1/url/${url.shortCode}`;
 
-        container.innerHTML += `
-            <div class="card">
-                <h3>${url.name}</h3>
+        card.querySelector(".url-name").textContent = url.name;
+        card.querySelector(".original-url").textContent = url.url;
+        card.querySelector(".total-clicks").textContent = url.tot_Clicks || 0;
 
-                <p>
-                    Original URL:
-                    ${url.url}
-                </p>
+        const shortUrlLink = card.querySelector(".short-url");
+        shortUrlLink.href = `/api/v1/url/${url.shortCode}`;
+        shortUrlLink.textContent = shortUrl;
 
-                <a href="/api/v1/url/${url.shortCode}" target="_blank">
-                    localhost:8080/api/v1/url/${url.shortCode }
-                </a>
-            </div>
-        `;
+        card.querySelector(".delete-btn").addEventListener("click", () => deleteUrl(url.id));
+
+        container.appendChild(card);
     });
 }
 
