@@ -18,7 +18,7 @@ services:
       - mysql-data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpassword"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpassword" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -31,7 +31,30 @@ services:
     ports:
       - "6379:6379"
 
-  url-shortner:
+  app1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: url-shortner-1
+
+    restart: always
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    ports:
+      - "8082:8081"
+
+    environment:
+      SERVER_PORT: 8081
+      INSTANCE_NAME: APP-1
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: myrootpassword
+
+  app2:
     build:
       context: .
       dockerfile: Dockerfile
@@ -45,14 +68,16 @@ services:
         condition: service_healthy
 
     ports:
-      - "8081:8081"
+      - "8083:8081"
 
     environment:
       SERVER_PORT: 8081
-
+      INSTANCE_NAME: APP-2
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: myrootpassword
+
+
 
 volumes:
   mysql-data:
