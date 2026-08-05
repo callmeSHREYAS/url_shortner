@@ -1,14 +1,15 @@
 async function createUrl() {
-
-    const name = document.getElementById("name").value;
-    const url = document.getElementById("url").value;
+    const nameInput = document.getElementById("name");
+    const urlInput = document.getElementById("url");
+    const name = nameInput.value.trim();
+    const url = urlInput.value.trim();
 
     if (!name || !url) {
         alert("Fill all fields");
         return;
     }
 
-    await fetch("/api/v1/url", {
+    const response = await fetch("/api/v1/url", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -19,8 +20,13 @@ async function createUrl() {
         })
     });
 
-    document.getElementById("name").value = "";
-    document.getElementById("url").value = "";
+    if (!response.ok) {
+        alert("URL was not created");
+        return;
+    }
+
+    nameInput.value = "";
+    urlInput.value = "";
 
     loadUrls();
 }
@@ -42,10 +48,20 @@ async function loadUrls() {
 
     const response = await fetch("/api/v1/url");
 
+    if (!response.ok) {
+        alert("URLs could not be loaded");
+        return;
+    }
+
     const urls = await response.json();
 
     const container = document.getElementById("url-list");
     const template = document.getElementById("url-card-template");
+
+    if (!container || !template) {
+        console.error("Missing url-list container or url-card-template in index.html");
+        return;
+    }
 
     container.innerHTML = "";
 

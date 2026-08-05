@@ -1,7 +1,12 @@
-package com.shreyas.url_shortner.url;
+package com.shreyas.url_shortner.url.Controller;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
+
+import com.shreyas.url_shortner.url.URL;
+import com.shreyas.url_shortner.url.UrlRepository;
+import com.shreyas.url_shortner.url.Service.UrlService;
+
 import java.util.List;
 
 @RestController

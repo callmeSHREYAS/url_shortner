@@ -1,4 +1,4 @@
-package com.shreyas.url_shortner.url;
+package com.shreyas.url_shortner.url.Service;
 
 
 import com.shreyas.url_shortner.util.Base62;

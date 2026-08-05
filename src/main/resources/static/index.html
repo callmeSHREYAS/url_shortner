@@ -14,13 +14,34 @@
         <input id="url" placeholder="https://example.com">
 
         <button onclick="createUrl()">
-            PIG
+            CREATE URL
         </button>
     </div>
 
     <hr>
 
     <div id="url-list"></div>
+
+    <template id="url-card-template">
+        <div class="card">
+            <h3 class="url-name"></h3>
+            <p>
+                Original:
+                <span class="original-url"></span>
+            </p>
+            <p>
+                Short:
+                <a class="short-url" target="_blank" rel="noopener noreferrer"></a>
+            </p>
+            <p>
+                Clicks:
+                <span class="total-clicks">0</span>
+            </p>
+            <div class="actions">
+                <button class="delete-btn" type="button">Delete</button>
+            </div>
+        </div>
+    </template>
 
     <script src="script.js"></script>
 
