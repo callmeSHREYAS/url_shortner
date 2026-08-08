@@ -166,7 +166,18 @@ services:
       - app3
       - app4
       - app5
+      
+  zookeeper:
+    image: zookeeper:3.9
+    container_name: zookeeper
 
+    restart: always
+
+    ports:
+      - "2181:2181"
+
+    environment:
+      ZOO_MY_ID: 1
 
 
 volumes:

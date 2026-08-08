@@ -24,3 +24,4 @@ public class Base62 {
         return sb.reverse().toString();
     }
 }
+// 7 chars , each char will 62 , 62*7 >
