@@ -1,6 +1,7 @@
-package com.shreyas.url_shortner.url;
+package com.shreyas.url_shortner.url.Service;
+
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy; 
+import jakarta.annotation.PreDestroy;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -15,7 +16,12 @@ public class ZooKeeperService {
 
     private static final String SERVERS_PATH = "/url-shortener/servers";
 
+
     private ZooKeeper zooKeeper;
+
+    public ZooKeeper getZooKeeper() {
+        return zooKeeper;
+    }
 
     @Value("${INSTANCE_NAME:UNKNOWN}")
     private String instanceName;
@@ -30,16 +36,14 @@ public class ZooKeeperService {
                 5000,
                 event -> {
                     System.out.println("ZooKeeper event: " + event);
-                }
-        );
+                });
 
         createParentNodes();
 
         registerInstance();
 
         System.out.println(
-                "Registered server in ZooKeeper: " + instanceName
-        );
+                "Registered server in ZooKeeper: " + instanceName);
     }
 
     private void createParentNodes() throws Exception {
@@ -51,8 +55,7 @@ public class ZooKeeperService {
                     "/url-shortener",
                     new byte[0],
                     ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT
-            );
+                    CreateMode.PERSISTENT);
         }
 
         // /url-shortener/servers
@@ -62,8 +65,7 @@ public class ZooKeeperService {
                     SERVERS_PATH,
                     new byte[0],
                     ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT
-            );
+                    CreateMode.PERSISTENT);
         }
     }
 
@@ -77,8 +79,7 @@ public class ZooKeeperService {
                     serverPath,
                     instanceName.getBytes(),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.EPHEMERAL
-            );
+                    CreateMode.EPHEMERAL);
         }
     }
 
@@ -86,11 +87,12 @@ public class ZooKeeperService {
     public void shutdown() throws Exception {
 
         System.out.println(
-                "Closing ZooKeeper connection for " + instanceName
-        );
+                "Closing ZooKeeper connection for " + instanceName);
 
         if (zooKeeper != null) {
             zooKeeper.close();
         }
     }
+
+   
 }
