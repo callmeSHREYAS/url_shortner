@@ -1,8 +1,9 @@
 package com.shreyas.url_shortner.url.Controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
 
 import com.shreyas.url_shortner.url.URL;
@@ -15,10 +16,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/url") // Fixed: Added leading slash for explicit routing
 public class Controller {
-
-
-    
-
     @Autowired
     private RedisService redisService;
 
@@ -37,6 +34,7 @@ public class Controller {
         String shortCode = urlService.generateShortCode(url.getUrl());
         url.setShortCode(shortCode);
         urlRepository.save(url);
+        redisService.save(shortCode, url.getUrl());
         return shortCode;
     }
 
@@ -91,6 +89,6 @@ public class Controller {
                     return new RedirectView(url.getUrl());
 
                 })
-                .orElseThrow(() -> new RuntimeException("Short URL not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
     }
 }

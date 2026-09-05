@@ -18,7 +18,7 @@ services:
       - mysql-data:/var/lib/mysql
 
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpassword" ]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-pmyrootpassword" ]
       interval: 10s
       timeout: 5s
       retries: 10

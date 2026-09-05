@@ -19,7 +19,7 @@ public class ZooKeeperService {
     private static final String COUNTER_PATH = "/url-shortener/counter";
     private static final String INIT_COUNTER_PATH = "/url-shortener/counter/initCtr";
     private static final String COUNTER_RANGE_PATH = "/url-shortener/counter/ctrRange";
-    private static final int COUNTER_RANGE_SIZE = 100;
+    private static final int COUNTER_RANGE_SIZE = 100000;
 
     private ZooKeeper zooKeeper;
     private long currentCounter;

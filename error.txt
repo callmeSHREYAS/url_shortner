@@ -1,0 +1,77 @@
+1)redirect
+-Redis HIT
+   ↓
+return immediately
+
+tot_Clicks no increment
+
+2 - mysql hit on cache miss
+GET /shortCode
+      ↓
+Redis GET
+      ↓ MISS
+MySQL SELECT
+      ↓
+increment click
+      ↓
+MySQL SAVE       ← 🚨 WRITE
+      ↓
+Redis SET
+      ↓
+302
+
+
+
+current
+GET
+
+Redis?
+ |
+ +-- YES → return URL
+ |
+ NO
+ |
+MySQL
+ |
+Redis SET
+ |
+return
+______________________________________________________________________
+
+Better
+
+Create
+GET
+Redis?
+ |
+ +-- YES → return URL
+ |
+ NO
+ |
+MySQL
+ |
+Redis SET
+ |
+return
+
+Redirect
+GET /ABC123
+
+Redis
+ |
+ +---- HIT ----> redirect
+ |
+ MISS
+ |
+MySQL
+ |
+Redis SET
+ |
+redirect
+______________________________________________________________________
+/api/v1/url endpoint is dangerous under load
+Fix:Pagination
+______________________________________________________________________
+mysql healthcheck password
+______________________________________________________________________
+Your application has no input validation
