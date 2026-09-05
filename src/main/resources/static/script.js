@@ -1,3 +1,7 @@
+let currentPage = 0;
+const pageSize = 50;
+let totalPages = 0;
+
 async function createUrl() {
     const nameInput = document.getElementById("name");
     const urlInput = document.getElementById("url");
@@ -28,7 +32,7 @@ async function createUrl() {
     nameInput.value = "";
     urlInput.value = "";
 
-    loadUrls();
+    loadUrls(currentPage);
 }
 
 async function deleteUrl(id) {
@@ -41,19 +45,22 @@ async function deleteUrl(id) {
         return;
     }
 
-    loadUrls();
+    loadUrls(currentPage);
 }
 
-async function loadUrls() {
+async function loadUrls(page = 0) {
 
-    const response = await fetch("/api/v1/url");
+    const response = await fetch(`/api/v1/url?page=${page}&size=${pageSize}`);
 
     if (!response.ok) {
         alert("URLs could not be loaded");
         return;
     }
 
-    const urls = await response.json();
+    const pageData = await response.json();
+    const urls = Array.isArray(pageData) ? pageData : pageData.content;
+    currentPage = Array.isArray(pageData) ? page : pageData.number;
+    totalPages = Array.isArray(pageData) ? 1 : pageData.totalPages;
 
     const container = document.getElementById("url-list");
     const template = document.getElementById("url-card-template");
@@ -64,6 +71,12 @@ async function loadUrls() {
     }
 
     container.innerHTML = "";
+
+    if (!urls.length) {
+        container.textContent = "No URLs found";
+        updatePagination();
+        return;
+    }
 
     urls.forEach(url => {
         const card = template.content.cloneNode(true);
@@ -81,6 +94,28 @@ async function loadUrls() {
 
         container.appendChild(card);
     });
+
+    updatePagination();
 }
 
-window.onload = loadUrls;
+function updatePagination() {
+    const prevButton = document.getElementById("prev-page");
+    const nextButton = document.getElementById("next-page");
+    const pageInfo = document.getElementById("page-info");
+
+    if (!prevButton || !nextButton || !pageInfo) {
+        return;
+    }
+
+    prevButton.disabled = currentPage <= 0;
+    nextButton.disabled = totalPages === 0 || currentPage >= totalPages - 1;
+    pageInfo.textContent = totalPages === 0
+        ? "Page 0 of 0"
+        : `Page ${currentPage + 1} of ${totalPages}`;
+}
+
+window.onload = () => {
+    document.getElementById("prev-page").addEventListener("click", () => loadUrls(currentPage - 1));
+    document.getElementById("next-page").addEventListener("click", () => loadUrls(currentPage + 1));
+    loadUrls();
+};

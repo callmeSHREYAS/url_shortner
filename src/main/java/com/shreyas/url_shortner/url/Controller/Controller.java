@@ -1,6 +1,9 @@
 package com.shreyas.url_shortner.url.Controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -11,11 +14,11 @@ import com.shreyas.url_shortner.url.UrlRepository;
 import com.shreyas.url_shortner.url.Service.RedisService;
 import com.shreyas.url_shortner.url.Service.UrlService;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/url") // Fixed: Added leading slash for explicit routing
 public class Controller {
+    private static final int MAX_PAGE_SIZE = 100;
+
     @Autowired
     private RedisService redisService;
 
@@ -38,10 +41,21 @@ public class Controller {
         return shortCode;
     }
 
-    // GET: Retrieve all URLs
+    // GET: Retrieve URLs page by page
     @GetMapping
-    public List<URL> getAllURl() {
-        return urlRepository.findAll();
+    public Page<URL> getAllURl(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        if (page < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page must be 0 or greater");
+        }
+
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+
+        return urlRepository.findAll(PageRequest.of(page, size, Sort.by("id").ascending()));
     }
 
     // GET: Retrieve specific URL by ID
