@@ -5,17 +5,22 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "urls")
+@Table(name = "urls", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_urls_short_code", columnNames = "short_code")
+})
 public class URL {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     private String name;
     private String url;
+    @Column(name = "short_code", unique = true, nullable = false)
     private String shortCode;
     private int tot_Clicks;
 
@@ -30,11 +35,11 @@ public class URL {
         this.shortCode = shortCode;
     }
 
-    public int getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

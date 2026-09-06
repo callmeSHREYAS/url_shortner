@@ -66,13 +66,13 @@ public class Controller {
 
     // GET: Retrieve specific URL by ID
     @GetMapping("/id/{id}")
-    public URL getUrlByID(@PathVariable int id) {
+    public URL getUrlByID(@PathVariable Long id) {
         return urlRepository.findById(id).orElse(null);
     }
 
     // DELETE: Remove a URL by ID
     @DeleteMapping("/delete/{id}")
-    public void deleteUrl(@PathVariable int id) {
+    public void deleteUrl(@PathVariable Long id) {
         URL url = urlRepository.findById(id).orElseThrow(() -> new RuntimeException("URL not found"));
         redisService.delete(url.getShortCode());
         urlRepository.deleteById(id);
