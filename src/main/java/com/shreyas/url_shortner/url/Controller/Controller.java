@@ -1,5 +1,8 @@
 package com.shreyas.url_shortner.url.Controller;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +21,7 @@ import com.shreyas.url_shortner.url.Service.UrlService;
 @RequestMapping("/api/v1/url") // Fixed: Added leading slash for explicit routing
 public class Controller {
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_URL_LENGTH = 2048;
 
     @Autowired
     private RedisService redisService;
@@ -34,6 +38,8 @@ public class Controller {
     // POST: Create a short URL
     @PostMapping
     public String createURL(@RequestBody URL url) {
+        validateCreateUrlRequest(url);
+
         String shortCode = urlService.generateShortCode(url.getUrl());
         url.setShortCode(shortCode);
         urlRepository.save(url);
@@ -104,5 +110,47 @@ public class Controller {
 
                 })
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
+    }
+
+    private void validateCreateUrlRequest(URL url) {
+        if (url == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required");
+        }
+
+        if (isBlank(url.getName())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        }
+
+        if (isBlank(url.getUrl())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URL is required");
+        }
+
+        String originalUrl = url.getUrl().trim();
+        if (originalUrl.length() > MAX_URL_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "URL must be " + MAX_URL_LENGTH + " characters or fewer");
+        }
+
+        if (!isValidHttpUrl(originalUrl)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URL must be a valid http or https URL");
+        }
+
+        url.setUrl(originalUrl);
+        url.setName(url.getName().trim());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private boolean isValidHttpUrl(String value) {
+        try {
+            URI uri = new URI(value);
+            String scheme = uri.getScheme();
+            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null;
+        } catch (URISyntaxException e) {
+            return false;
+        }
     }
 }
