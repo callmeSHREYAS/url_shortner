@@ -4,13 +4,18 @@ public class Base62 {
 
     private static final String CHARACTERS =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int SHORT_CODE_LENGTH = 7;
 
     public static String encode(long number) {
 
-        if (number == 0)
-            return "0";
+        if (number < 0)
+            throw new IllegalArgumentException("Number must be 0 or greater");
 
         StringBuilder sb = new StringBuilder();
+
+        if (number == 0) {
+            sb.append('0');
+        }
 
         while (number > 0) {
 
@@ -21,7 +26,10 @@ public class Base62 {
             number /= 62;
         }
 
+        while (sb.length() < SHORT_CODE_LENGTH) {
+            sb.append('0');
+        }
+
         return sb.reverse().toString();
     }
 }
-// 7 chars , each char will 62 , 62*7 >
