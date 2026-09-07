@@ -16,6 +16,7 @@ import com.shreyas.url_shortner.url.URL;
 import com.shreyas.url_shortner.url.UrlRepository;
 import com.shreyas.url_shortner.url.Service.RedisService;
 import com.shreyas.url_shortner.url.Service.UrlService;
+import com.shreyas.url_shortner.url.Service.ClickEventService;
 
 @RestController
 @RequestMapping("/api/v1/url") // Fixed: Added leading slash for explicit routing
@@ -28,11 +29,13 @@ public class Controller {
 
     private final UrlService urlService;
     private final UrlRepository urlRepository;
+    private final ClickEventService clickEventService;
 
     // Constructor Injection
-    public Controller(UrlService urlService, UrlRepository urlRepository) {
+    public Controller(UrlService urlService, UrlRepository urlRepository, ClickEventService clickEventService) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
+        this.clickEventService = clickEventService;
     }
 
     // POST: Create a short URL
@@ -87,6 +90,7 @@ public class Controller {
 
         if (cachedUrl != null) {
             System.out.println("✅ Cache HIT");
+            clickEventService.publishClick(shortned_url);
             return new RedirectView(cachedUrl);
         }
 
@@ -95,13 +99,9 @@ public class Controller {
         // 2. Cache miss -> Query MySQL
         return urlRepository.findByShortCode(shortned_url)
                 .map(url -> {
-
-                    // Increment click count
-                    url.setTot_Clicks(url.getTot_Clicks() + 1);
-                    urlRepository.save(url);
-
                     // 3. Save into Redis
                     redisService.save(shortned_url, url.getUrl());
+                    clickEventService.publishClick(shortned_url);
 
                     System.out.println("Stored in Redis");
 
