@@ -17,6 +17,9 @@ import com.shreyas.url_shortner.url.UrlRepository;
 import com.shreyas.url_shortner.url.Service.RedisService;
 import com.shreyas.url_shortner.url.Service.UrlService;
 import com.shreyas.url_shortner.url.Service.ClickEventService;
+import com.shreyas.url_shortner.url.dto.CreateUrlRequest;
+import com.shreyas.url_shortner.url.dto.CreateUrlResponse;
+import com.shreyas.url_shortner.url.dto.UrlResponse;
 
 @RestController
 @RequestMapping("/api/v1/url") // Fixed: Added leading slash for explicit routing
@@ -40,19 +43,24 @@ public class Controller {
 
     // POST: Create a short URL
     @PostMapping
-    public String createURL(@RequestBody URL url) {
-        validateCreateUrlRequest(url);
+    public CreateUrlResponse createURL(@RequestBody CreateUrlRequest request) {
+        validateCreateUrlRequest(request);
+
+        // Build the entity here so clients cannot set id, shortCode, or click counts.
+        URL url = new URL();
+        url.setName(request.getName().trim());
+        url.setUrl(request.getUrl().trim());
 
         String shortCode = urlService.generateShortCode(url.getUrl());
         url.setShortCode(shortCode);
         urlRepository.save(url);
         redisService.save(shortCode, url.getUrl());
-        return shortCode;
+        return new CreateUrlResponse(shortCode);
     }
 
     // GET: Retrieve URLs page by page
     @GetMapping
-    public Page<URL> getAllURl(
+    public Page<UrlResponse> getAllURl(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
 
@@ -64,13 +72,15 @@ public class Controller {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size must be between 1 and " + MAX_PAGE_SIZE);
         }
 
-        return urlRepository.findAll(PageRequest.of(page, size, Sort.by("id").ascending()));
+        // Map entities at the controller boundary so persistence fields are not exposed as the API contract.
+        return urlRepository.findAll(PageRequest.of(page, size, Sort.by("id").ascending()))
+            .map(this::toResponse);
     }
 
     // GET: Retrieve specific URL by ID
     @GetMapping("/id/{id}")
-    public URL getUrlByID(@PathVariable Long id) {
-        return urlRepository.findById(id).orElse(null);
+    public UrlResponse getUrlByID(@PathVariable Long id) {
+        return urlRepository.findById(id).map(this::toResponse).orElse(null);
     }
 
     // DELETE: Remove a URL by ID
@@ -112,20 +122,20 @@ public class Controller {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
     }
 
-    private void validateCreateUrlRequest(URL url) {
-        if (url == null) {
+    private void validateCreateUrlRequest(CreateUrlRequest request) {
+        if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required");
         }
 
-        if (isBlank(url.getName())) {
+        if (isBlank(request.getName())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
         }
 
-        if (isBlank(url.getUrl())) {
+        if (isBlank(request.getUrl())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URL is required");
         }
 
-        String originalUrl = url.getUrl().trim();
+        String originalUrl = request.getUrl().trim();
         if (originalUrl.length() > MAX_URL_LENGTH) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "URL must be " + MAX_URL_LENGTH + " characters or fewer");
@@ -135,8 +145,12 @@ public class Controller {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URL must be a valid http or https URL");
         }
 
-        url.setUrl(originalUrl);
-        url.setName(url.getName().trim());
+        request.setUrl(originalUrl);
+        request.setName(request.getName().trim());
+    }
+
+    private UrlResponse toResponse(URL url) {
+        return new UrlResponse(url.getId(), url.getName(), url.getUrl(), url.getShortCode(), url.getTot_Clicks());
     }
 
     private boolean isBlank(String value) {
