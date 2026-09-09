@@ -7,6 +7,7 @@ const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:8081';
 const createLatency = new Trend('create_url_duration');
 const redirectLatency = new Trend('redirect_duration');
 const badRedirects = new Rate('bad_redirects');
+const createFailures = new Rate('create_failures');
 
 export const options = {
   scenarios: {
@@ -41,6 +42,7 @@ export const options = {
     create_url_duration: ['p(95)<1000'],
     redirect_duration: ['p(95)<500'],
     bad_redirects: ['rate<0.01'],
+    create_failures: ['rate<0.05'],
   },
 };
 
@@ -58,8 +60,9 @@ export function setup() {
       { headers: { 'Content-Type': 'application/json' } },
     );
 
-    if (res.status === 200 && res.body.trim()) {
-      codes.push(res.body.trim());
+    const shortCode = res.status === 200 ? res.json('shortCode') : null;
+    if (shortCode) {
+      codes.push(shortCode);
     }
   }
 
@@ -82,10 +85,10 @@ export function createUrls() {
 
     const ok = check(res, {
       'create status is 200': (r) => r.status === 200,
-      'create body has short code': (r) => r.body && r.body.trim().length > 0,
+      'create body has short code': (r) => Boolean(r.json('shortCode')),
     });
 
-    badRedirects.add(!ok);
+    createFailures.add(!ok);
   });
 
   sleep(0.2);

@@ -8,6 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
@@ -17,6 +20,7 @@ import com.shreyas.url_shortner.url.UrlRepository;
 import com.shreyas.url_shortner.url.Service.RedisService;
 import com.shreyas.url_shortner.url.Service.UrlService;
 import com.shreyas.url_shortner.url.Service.ClickEventService;
+import com.shreyas.url_shortner.url.Service.CreateRateLimitService;
 import com.shreyas.url_shortner.url.dto.CreateUrlRequest;
 import com.shreyas.url_shortner.url.dto.CreateUrlResponse;
 import com.shreyas.url_shortner.url.dto.UrlDtoMapper;
@@ -35,22 +39,41 @@ public class Controller {
     private final UrlRepository urlRepository;
     private final ClickEventService clickEventService;
     private final UrlDtoMapper urlDtoMapper;
+    private final CreateRateLimitService createRateLimitService;
 
     // Constructor Injection
     public Controller(
             UrlService urlService,
             UrlRepository urlRepository,
             ClickEventService clickEventService,
-            UrlDtoMapper urlDtoMapper) {
+            UrlDtoMapper urlDtoMapper,
+            CreateRateLimitService createRateLimitService) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
         this.clickEventService = clickEventService;
         this.urlDtoMapper = urlDtoMapper;
+        this.createRateLimitService = createRateLimitService;
     }
 
     // POST: Create a short URL
     @PostMapping
-    public CreateUrlResponse createURL(@RequestBody CreateUrlRequest request) {
+    public CreateUrlResponse createURL(
+            @RequestBody CreateUrlRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        CreateRateLimitService.RateLimitDecision decision = createRateLimitService.check(clientKey(httpRequest));
+        httpResponse.setHeader("X-RateLimit-Limit", Integer.toString(decision.limit()));
+        httpResponse.setHeader("X-RateLimit-Remaining",
+                Long.toString(Math.max(0, decision.limit() - decision.count())));
+
+        if (!decision.allowed()) {
+            httpResponse.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(decision.retryAfterSeconds()));
+            throw new ResponseStatusException(
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "Create URL rate limit exceeded. Try again in "
+                            + decision.retryAfterSeconds() + " seconds");
+        }
+
         validateCreateUrlRequest(request);
 
         // Build the entity here so clients cannot set id, shortCode, or click counts.
@@ -63,6 +86,15 @@ public class Controller {
         urlRepository.save(url);
         redisService.save(shortCode, url.getUrl());
         return new CreateUrlResponse(shortCode);
+    }
+
+    private String clientKey(HttpServletRequest request) {
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+
+        return request.getRemoteAddr();
     }
 
     // GET: Retrieve URLs page by page

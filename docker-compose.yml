@@ -175,6 +175,10 @@ services:
 
     ports:
       - "2181:2181"
+    
+    volumes:
+    - zookeeper-data:/data
+    - zookeeper-datalog:/datalog
 
     environment:
       ZOO_MY_ID: 1
@@ -182,3 +186,5 @@ services:
 
 volumes:
   mysql-data:
+  zookeeper-data:
+  zookeeper-datalog:

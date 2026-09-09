@@ -25,10 +25,13 @@ export default function () {
 
   check(createRes, {
     'create returns 200': (res) => res.status === 200,
-    'short code returned': (res) => res.body && res.body.trim().length > 0,
+    'short code returned': (res) => Boolean(res.json('shortCode')),
   });
 
-  const shortCode = createRes.body.trim();
+  const shortCode = createRes.status === 200 ? createRes.json('shortCode') : null;
+  if (!shortCode) {
+    return;
+  }
   const redirectRes = http.get(`${BASE_URL}/api/v1/url/${shortCode}`, {
     redirects: 0,
   });

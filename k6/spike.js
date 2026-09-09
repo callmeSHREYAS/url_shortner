@@ -34,8 +34,10 @@ export default function () {
     'create survives spike': (res) => res.status === 200,
   });
 
-  if (createRes.status === 200 && createRes.body.trim()) {
-    const redirectRes = http.get(`${BASE_URL}/api/v1/url/${createRes.body.trim()}`, {
+  const shortCode = createRes.status === 200 ? createRes.json('shortCode') : null;
+
+  if (shortCode) {
+    const redirectRes = http.get(`${BASE_URL}/api/v1/url/${shortCode}`, {
       redirects: 0,
     });
 

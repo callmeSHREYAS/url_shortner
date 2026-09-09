@@ -9,8 +9,18 @@ These scripts test the real app flow:
 
 ## Start the app
 
+For normal development:
+
 ```powershell
-docker compose up --build
+docker compose up --build -d
+```
+
+For load and spike tests, use the test override. It raises the create rate
+limit so the benchmark measures application capacity instead of intentionally
+measuring `429 Too Many Requests` responses:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up --build -d
 ```
 
 Wait until nginx is available at:

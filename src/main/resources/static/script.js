@@ -25,6 +25,12 @@ async function createUrl() {
     });
 
     if (!response.ok) {
+        if (response.status === 429) {
+            const retryAfter = response.headers.get("Retry-After");
+            alert(`Too many requests. Please try again in ${retryAfter || "a few"} seconds.`);
+            return;
+        }
+
         alert("URL was not created");
         return;
     }

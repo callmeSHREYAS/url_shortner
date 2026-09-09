@@ -1,0 +1,20 @@
+services:
+  app1:
+    environment:
+      RATE_LIMIT_CREATE_MAX_REQUESTS: 100000
+
+  app2:
+    environment:
+      RATE_LIMIT_CREATE_MAX_REQUESTS: 100000
+
+  app3:
+    environment:
+      RATE_LIMIT_CREATE_MAX_REQUESTS: 100000
+
+  app4:
+    environment:
+      RATE_LIMIT_CREATE_MAX_REQUESTS: 100000
+
+  app5:
+    environment:
+      RATE_LIMIT_CREATE_MAX_REQUESTS: 100000
