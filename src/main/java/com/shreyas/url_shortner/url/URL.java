@@ -6,11 +6,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
 
 @Entity
-@Table(name = "urls", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_urls_short_code", columnNames = "short_code")
+@Table(name = "urls", indexes = {
+    // A unique index makes short-code redirects fast and prevents duplicate codes.
+    @Index(name = "uk_urls_short_code", columnList = "short_code", unique = true)
 })
 public class URL {
 
@@ -20,7 +21,7 @@ public class URL {
 
     private String name;
     private String url;
-    @Column(name = "short_code", unique = true, nullable = false)
+    @Column(name = "short_code", nullable = false)
     private String shortCode;
     private int tot_Clicks;
 

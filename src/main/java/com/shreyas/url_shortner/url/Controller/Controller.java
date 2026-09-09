@@ -19,6 +19,7 @@ import com.shreyas.url_shortner.url.Service.UrlService;
 import com.shreyas.url_shortner.url.Service.ClickEventService;
 import com.shreyas.url_shortner.url.dto.CreateUrlRequest;
 import com.shreyas.url_shortner.url.dto.CreateUrlResponse;
+import com.shreyas.url_shortner.url.dto.UrlDtoMapper;
 import com.shreyas.url_shortner.url.dto.UrlResponse;
 
 @RestController
@@ -33,12 +34,18 @@ public class Controller {
     private final UrlService urlService;
     private final UrlRepository urlRepository;
     private final ClickEventService clickEventService;
+    private final UrlDtoMapper urlDtoMapper;
 
     // Constructor Injection
-    public Controller(UrlService urlService, UrlRepository urlRepository, ClickEventService clickEventService) {
+    public Controller(
+            UrlService urlService,
+            UrlRepository urlRepository,
+            ClickEventService clickEventService,
+            UrlDtoMapper urlDtoMapper) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
         this.clickEventService = clickEventService;
+        this.urlDtoMapper = urlDtoMapper;
     }
 
     // POST: Create a short URL
@@ -74,13 +81,13 @@ public class Controller {
 
         // Map entities at the controller boundary so persistence fields are not exposed as the API contract.
         return urlRepository.findAll(PageRequest.of(page, size, Sort.by("id").ascending()))
-            .map(this::toResponse);
+            .map(urlDtoMapper::toResponse);
     }
 
     // GET: Retrieve specific URL by ID
     @GetMapping("/id/{id}")
     public UrlResponse getUrlByID(@PathVariable Long id) {
-        return urlRepository.findById(id).map(this::toResponse).orElse(null);
+        return urlRepository.findById(id).map(urlDtoMapper::toResponse).orElse(null);
     }
 
     // DELETE: Remove a URL by ID
@@ -147,10 +154,6 @@ public class Controller {
 
         request.setUrl(originalUrl);
         request.setName(request.getName().trim());
-    }
-
-    private UrlResponse toResponse(URL url) {
-        return new UrlResponse(url.getId(), url.getName(), url.getUrl(), url.getShortCode(), url.getTot_Clicks());
     }
 
     private boolean isBlank(String value) {
