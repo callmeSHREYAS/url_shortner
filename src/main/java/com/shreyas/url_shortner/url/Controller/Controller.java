@@ -13,13 +13,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.servlet.view.RedirectView;
 
 import com.shreyas.url_shortner.url.URL;
 import com.shreyas.url_shortner.url.UrlRepository;
 import com.shreyas.url_shortner.url.Service.RedisService;
 import com.shreyas.url_shortner.url.Service.UrlService;
-import com.shreyas.url_shortner.url.Service.ClickEventService;
 import com.shreyas.url_shortner.url.Service.CreateRateLimitService;
 import com.shreyas.url_shortner.url.dto.CreateUrlRequest;
 import com.shreyas.url_shortner.url.dto.CreateUrlResponse;
@@ -37,7 +35,6 @@ public class Controller {
 
     private final UrlService urlService;
     private final UrlRepository urlRepository;
-    private final ClickEventService clickEventService;
     private final UrlDtoMapper urlDtoMapper;
     private final CreateRateLimitService createRateLimitService;
 
@@ -45,12 +42,10 @@ public class Controller {
     public Controller(
             UrlService urlService,
             UrlRepository urlRepository,
-            ClickEventService clickEventService,
             UrlDtoMapper urlDtoMapper,
             CreateRateLimitService createRateLimitService) {
         this.urlService = urlService;
         this.urlRepository = urlRepository;
-        this.clickEventService = clickEventService;
         this.urlDtoMapper = urlDtoMapper;
         this.createRateLimitService = createRateLimitService;
     }
@@ -131,37 +126,6 @@ public class Controller {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "URL not found with id " + id));
         redisService.delete(url.getShortCode());
         urlRepository.deleteById(id);
-    }
-
-    // GET: Redirect short code to original target URL
-    @GetMapping("/{shortned_url}")
-    public RedirectView redirect(@PathVariable String shortned_url) {
-
-        // 1. Check Redis
-        String cachedUrl = redisService.get(shortned_url);
-
-        if (cachedUrl != null) {
-            System.out.println("✅ Cache HIT");
-            clickEventService.publishClick(shortned_url);
-            return new RedirectView(cachedUrl);
-        }
-
-        System.out.println("❌ Cache MISS");
-
-        // 2. Cache miss -> Query MySQL
-        return urlRepository.findByShortCode(shortned_url)
-                .map(url -> {
-                    // 3. Save into Redis
-                    redisService.save(shortned_url, url.getUrl());
-                    clickEventService.publishClick(shortned_url);
-
-                    System.out.println("Stored in Redis");
-
-                    // 4. Redirect
-                    return new RedirectView(url.getUrl());
-
-                })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
     }
 
     private void validateCreateUrlRequest(CreateUrlRequest request) {
