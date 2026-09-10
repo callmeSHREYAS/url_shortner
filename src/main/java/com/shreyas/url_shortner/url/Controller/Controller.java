@@ -119,13 +119,16 @@ public class Controller {
     // GET: Retrieve specific URL by ID
     @GetMapping("/id/{id}")
     public UrlResponse getUrlByID(@PathVariable Long id) {
-        return urlRepository.findById(id).map(urlDtoMapper::toResponse).orElse(null);
+        return urlRepository.findById(id)
+                .map(urlDtoMapper::toResponse)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "URL not found with id " + id));
     }
 
     // DELETE: Remove a URL by ID
     @DeleteMapping("/delete/{id}")
     public void deleteUrl(@PathVariable Long id) {
-        URL url = urlRepository.findById(id).orElseThrow(() -> new RuntimeException("URL not found"));
+        URL url = urlRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "URL not found with id " + id));
         redisService.delete(url.getShortCode());
         urlRepository.deleteById(id);
     }
