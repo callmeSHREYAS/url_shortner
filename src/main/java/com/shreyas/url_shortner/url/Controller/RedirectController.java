@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
 
+import com.shreyas.url_shortner.url.URL;
 import com.shreyas.url_shortner.url.UrlRepository;
 import com.shreyas.url_shortner.url.Service.ClickEventService;
 import com.shreyas.url_shortner.url.Service.RedisService;
@@ -34,6 +35,11 @@ public class RedirectController {
         String cachedUrl = redisService.get(shortCode);
 
         if (cachedUrl != null) {
+            // Cached miss -> short code is known to not exist; skip the DB query.
+            if (redisService.isNotFound(cachedUrl)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+            }
+
             System.out.println("✅ Cache HIT");
             clickEventService.publishClick(shortCode);
             return new RedirectView(cachedUrl);
@@ -41,19 +47,20 @@ public class RedirectController {
 
         System.out.println("❌ Cache MISS");
 
-        // 2. Cache miss -> Query MySQL
-        return urlRepository.findByShortCode(shortCode)
-                .map(url -> {
-                    // 3. Save into Redis
-                    redisService.save(shortCode, url.getUrl());
-                    clickEventService.publishClick(shortCode);
+        // 2. Cache miss -> Query MySQL; on a miss, cache the sentinel for a short TTL.
+        URL url = urlRepository.findByShortCode(shortCode).orElse(null);
+        if (url == null) {
+            redisService.cacheNotFound(shortCode);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+        }
 
-                    System.out.println("Stored in Redis");
+        // 3. Save into Redis
+        redisService.save(shortCode, url.getUrl());
+        clickEventService.publishClick(shortCode);
 
-                    // 4. Redirect
-                    return new RedirectView(url.getUrl());
+        System.out.println("Stored in Redis");
 
-                })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found"));
+        // 4. Redirect
+        return new RedirectView(url.getUrl());
     }
 }

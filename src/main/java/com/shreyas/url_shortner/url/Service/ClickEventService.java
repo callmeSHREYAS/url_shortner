@@ -26,9 +26,6 @@ import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.shreyas.url_shortner.url.UrlRepository;
 
 /** Publishes redirect events and counts them asynchronously in batches. */
 @Service
@@ -40,7 +37,7 @@ public class ClickEventService {
     private static final String SHORT_CODE_FIELD = "shortCode";
 
     private final RedisTemplate<String, String> redisTemplate;
-    private final UrlRepository urlRepository;
+    private final ClickCountPersister clickCountPersister;
     private final String consumerName;
     private final int batchSize;
     private final Duration claimIdleTime;
@@ -49,13 +46,13 @@ public class ClickEventService {
 
     public ClickEventService(
             RedisTemplate<String, String> redisTemplate,
-            UrlRepository urlRepository,
+            ClickCountPersister clickCountPersister,
             @Value("${INSTANCE_NAME:${spring.application.name:local}}") String instanceName,
             @Value("${click-events.batch-size:100}") int batchSize,
             @Value("${click-events.claim-idle-ms:30000}") long claimIdleMs,
             @Value("${click-events.read-block-ms:100}") long readBlockMs) {
         this.redisTemplate = redisTemplate;
-        this.urlRepository = urlRepository;
+        this.clickCountPersister = clickCountPersister;
         this.consumerName = instanceName + "-" + UUID.randomUUID();
         this.batchSize = batchSize;
         this.claimIdleTime = Duration.ofMillis(claimIdleMs);
@@ -75,8 +72,9 @@ public class ClickEventService {
     /**
      * Reads new events and retries events abandoned by a failed consumer.
      * Records are acknowledged only after their database update succeeds.
+     * No database transaction is held during the Redis I/O; each batch of
+     * DB writes is committed independently by ClickCountPersister.
      */
-    @Transactional
     @Scheduled(fixedDelayString = "${click-events.poll-delay-ms:100}")
     public void processClickEvents() {
         if (!ensureConsumerGroup()) {
@@ -104,7 +102,7 @@ public class ClickEventService {
         }
 
         Map<String, Integer> clickCounts = countByShortCode(records);
-        persistCounts(clickCounts);
+        clickCountPersister.persistCounts(clickCounts);
 
         // If persistence fails, records remain pending and will be reclaimed later.
         Set<RecordId> recordIds = new HashSet<>();
@@ -177,9 +175,5 @@ public class ClickEventService {
                 return false;
             }
         }
-    }
-
-    protected void persistCounts(Map<String, Integer> clickCounts) {
-        clickCounts.forEach(urlRepository::incrementClicksByShortCode);
     }
 }
