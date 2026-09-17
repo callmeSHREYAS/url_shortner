@@ -32,7 +32,7 @@ export default function () {
   if (!shortCode) {
     return;
   }
-  const redirectRes = http.get(`${BASE_URL}/api/v1/url/${shortCode}`, {
+  const redirectRes = http.get(`${BASE_URL}/${shortCode}`, {
     redirects: 0,
   });
 

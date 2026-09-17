@@ -103,7 +103,7 @@ export function redirectUrls(data) {
       return;
     }
 
-    const res = http.get(`${BASE_URL}/api/v1/url/${code}`, { redirects: 0 });
+    const res = http.get(`${BASE_URL}/${code}`, { redirects: 0 });
     redirectLatency.add(res.timings.duration);
 
     const ok = check(res, {

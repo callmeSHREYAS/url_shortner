@@ -37,7 +37,7 @@ export default function () {
   const shortCode = createRes.status === 200 ? createRes.json('shortCode') : null;
 
   if (shortCode) {
-    const redirectRes = http.get(`${BASE_URL}/api/v1/url/${shortCode}`, {
+    const redirectRes = http.get(`${BASE_URL}/${shortCode}`, {
       redirects: 0,
     });
 

@@ -28,7 +28,7 @@ public class RedirectController {
     }
 
     // GET: Redirect short code to original target URL
-    @GetMapping("/{shortCode}")
+    @GetMapping("/{shortCode:[A-Za-z0-9]+}")
     public RedirectView redirect(@PathVariable String shortCode) {
 
         // 1. Check Redis
@@ -37,7 +37,7 @@ public class RedirectController {
         if (cachedUrl != null) {
             // Cached miss -> short code is known to not exist; skip the DB query.
             if (redisService.isNotFound(cachedUrl)) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found error 1");
             }
 
             System.out.println("✅ Cache HIT");
@@ -51,7 +51,7 @@ public class RedirectController {
         URL url = urlRepository.findByShortCode(shortCode).orElse(null);
         if (url == null) {
             redisService.cacheNotFound(shortCode);
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found error 2");
         }
 
         // 3. Save into Redis

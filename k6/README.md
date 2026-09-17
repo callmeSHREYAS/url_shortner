@@ -3,8 +3,8 @@
 These scripts test the real app flow:
 
 - `POST /api/v1/url` creates a short URL.
-- `GET /api/v1/url/{shortCode}` checks redirect behavior without following the redirect.
-- `GET /api/v1/url` checks list performance.
+- `GET /{shortCode}` checks redirect behavior without following the redirect.
+- `GET /api/v1/url` checks list performance.have done docker comp
 - `/instance` is used as the redirect target so the tests do not depend on an external website.
 
 ## Start the app

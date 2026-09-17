@@ -86,14 +86,14 @@ async function loadUrls(page = 0) {
 
     urls.forEach(url => {
         const card = template.content.cloneNode(true);
-        const shortUrl = `${window.location.origin}/api/v1/url/${url.shortCode}`;
+        const shortUrl = new URL(`/${url.shortCode}`, window.location.origin).href;
 
         card.querySelector(".url-name").textContent = url.name;
         card.querySelector(".original-url").textContent = url.url;
         card.querySelector(".total-clicks").textContent = url.totalClicks || 0;
 
         const shortUrlLink = card.querySelector(".short-url");
-        shortUrlLink.href = `/api/v1/url/${url.shortCode}`;
+        shortUrlLink.href = shortUrl;
         shortUrlLink.textContent = shortUrl;
 
         card.querySelector(".delete-btn").addEventListener("click", () => deleteUrl(url.id));
