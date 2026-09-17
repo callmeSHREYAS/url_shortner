@@ -1,129 +1,132 @@
 # 🔗 Scalable URL Shortener
 
-A production-oriented URL shortening service built with **Spring Boot**, **MySQL**, **Redis**, **Apache ZooKeeper**, **Nginx**, and **Docker**.
+A distributed and horizontally scalable URL shortening service built with **Spring Boot, MySQL, Redis, Apache ZooKeeper, Nginx, Docker, and k6**.
 
-The project is designed to explore the system-design problems behind a URL shortener: fast redirects, caching, unique short-code generation, horizontal application scaling, database replication, rate limiting, asynchronous click analytics, and load testing.
+The project focuses on the **system-design challenges behind a URL shortener**, including distributed ID generation, caching, database replication, horizontal scaling, load balancing, rate limiting, and asynchronous click analytics.
 
-> 🚧 This is an engineering/system-design project and is still being improved toward a more production-ready architecture.
-
----
-
-## ✨ Features
-
-* 🔗 Create short URLs using a Base62-style short-code generation strategy
-* ⚡ Redis caching for fast redirects
-* 🗄️ MySQL as the persistent data store
-* 📖 MySQL primary + read-replica setup
-* 🧩 Apache ZooKeeper for distributed coordination / ID allocation
-* ⚖️ Nginx load balancing across multiple Spring Boot instances
-* 📈 Horizontally scalable application containers
-* 🚦 Rate limiting for URL creation
-* 🛡️ HTTP/HTTPS URL validation and request validation
-* 🚫 Negative caching for non-existent short codes
-* 📊 Asynchronous click-event processing architecture
-* 🐳 Docker Compose environment for the complete stack
-* 🧪 k6 load-testing setup
-* ❤️ Spring Boot Actuator for application monitoring
+> 🚧 **Status:** Engineering / system-design project. The architecture is continuously being improved toward production readiness.
 
 ---
 
-## 🏗️ Architecture
+## 🚀 What This Project Does
+
+The service converts long URLs into short, shareable links.
+
+For example:
 
 ```text
-                         ┌─────────────────┐
-                         │     Client      │
-                         └────────┬────────┘
+https://www.example.com/very/long/url/path
+                    ↓
+             http://localhost:8081/aB91xZ
+```
+
+When a user accesses the short URL, the service resolves the short code and redirects them to the original URL.
+
+The system is designed to handle the high-read traffic pattern normally associated with URL shorteners.
+
+---
+
+# ✨ Features
+
+* 🔗 Short URL generation using **Base62 encoding**
+* 🆔 Distributed ID allocation using **Apache ZooKeeper**
+* ⚡ **Redis** caching for fast URL resolution
+* 🚫 Negative caching for invalid short codes
+* 🗄️ **MySQL** persistent storage
+* 🔄 MySQL Primary + Read Replica architecture
+* ⚖️ **Nginx** load balancing
+* 📦 Multiple Spring Boot application instances
+* 🚦 IP-based rate limiting for URL creation
+* 📊 Asynchronous click-event processing architecture
+* 🐳 Fully containerized development environment
+* 🧪 **k6** load-testing setup
+* ❤️ Spring Boot Actuator for monitoring
+* 📄 Pagination for URL listing APIs
+* ✅ Request and URL validation
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                         ┌──────────────────┐
+                         │      Client      │
+                         └────────┬─────────┘
                                   │
                                   ▼
-                         ┌─────────────────┐
-                         │      Nginx      │
-                         │ Load Balancer   │
-                         └────────┬────────┘
+                         ┌──────────────────┐
+                         │      Nginx       │
+                         │  Load Balancer   │
+                         └────────┬─────────┘
                                   │
-                ┌─────────────────┼─────────────────┐
-                │                 │                 │
-                ▼                 ▼                 ▼
-           ┌─────────┐       ┌─────────┐       ┌─────────┐
-           │  App 1  │       │  App 2  │  ...  │  App 5  │
-           │ Spring  │       │ Spring  │       │ Spring  │
-           │  Boot   │       │  Boot   │       │  Boot   │
-           └────┬────┘       └────┬────┘       └────┬────┘
-                │                 │                 │
-                └─────────────────┼─────────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │                           │
-                    ▼                           ▼
-              ┌──────────┐               ┌──────────────┐
-              │  Redis   │               │  ZooKeeper   │
-              │  Cache   │               │ Coordination │
-              └──────────┘               └──────────────┘
+              ┌───────────────────┼───────────────────┐
+              │                   │                   │
+              ▼                   ▼                   ▼
+        ┌──────────┐        ┌──────────┐        ┌──────────┐
+        │  App 1   │        │  App 2   │  ...   │  App 5   │
+        │ Spring   │        │ Spring   │        │ Spring   │
+        │  Boot    │        │  Boot    │        │  Boot    │
+        └────┬─────┘        └────┬─────┘        └────┬─────┘
+             │                   │                   │
+             └───────────────────┼───────────────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    │                         │
+                    ▼                         ▼
+              ┌──────────┐             ┌─────────────┐
+              │  Redis   │             │  ZooKeeper  │
+              │  Cache   │             │ Coordination│
+              └────┬─────┘             └─────────────┘
+                   │
+                   │ Cache Miss
+                   ▼
+            ┌──────────────┐
+            │ MySQL Primary│
+            │  READ/WRITE  │
+            └───────┬──────┘
                     │
-                    │ cache miss / writes
+                Replication
+                    │
                     ▼
-              ┌──────────┐      replication      ┌──────────────┐
-              │  MySQL   │ ───────────────────► │ MySQL Replica│
-              │ Primary  │                       │ Read Replica │
-              └──────────┘                       └──────────────┘
+            ┌──────────────┐
+            │ MySQL Replica│
+            │   READ ONLY  │
+            └──────────────┘
 ```
 
-### Redirect Flow
+---
+
+# 🔄 URL Creation Flow
+
+When a client creates a short URL:
 
 ```text
-GET /{shortCode}
-       │
-       ▼
-    Redis?
-    /    \
-  HIT    MISS
-   │        │
-   │        ▼
-   │      MySQL
-   │        │
-   │        ▼
-   │      Redis SET
-   │        │
-   └────┬───┘
-        ▼
- Publish click event
-        │
-        ▼
- Redirect to original URL
+Client
+   │
+   │ POST /api/v1/url
+   ▼
+Nginx
+   │
+   ▼
+Spring Boot
+   │
+   ├── Validate URL
+   │
+   ├── Check Rate Limit
+   │
+   ├── Request ID from ZooKeeper
+   │
+   ├── Base62 Encode ID
+   │
+   ├── Store URL in MySQL
+   │
+   ├── Store mapping in Redis
+   │
+   ▼
+Return Short Code
 ```
 
-The redirect path checks Redis first. On a cache miss, the service reads MySQL, populates Redis, publishes a click event, and redirects the client.
-
----
-
-## 🧱 Tech Stack
-
-| Technology           | Purpose                                  |
-| -------------------- | ---------------------------------------- |
-| Java 25              | Application runtime                      |
-| Spring Boot          | REST API and application framework       |
-| Spring Data JPA      | Persistence layer                        |
-| MySQL                | Primary persistent database              |
-| Redis                | URL cache and fast lookup layer          |
-| Apache ZooKeeper     | Distributed coordination / ID allocation |
-| Nginx                | Load balancing                           |
-| Docker               | Containerization                         |
-| Docker Compose       | Local distributed environment            |
-| k6                   | Load testing                             |
-| Maven                | Build and dependency management          |
-| Spring Boot Actuator | Application monitoring                   |
-
----
-
-# 🚀 API
-
-## 1. Create a Short URL
-
-```http
-POST /api/v1/url
-Content-Type: application/json
-```
-
-### Request
+Example:
 
 ```json
 {
@@ -132,7 +135,7 @@ Content-Type: application/json
 }
 ```
 
-### Response
+Response:
 
 ```json
 {
@@ -140,30 +143,34 @@ Content-Type: application/json
 }
 ```
 
-The create endpoint:
-
-1. Validates the request
-2. Applies rate limiting
-3. Generates a unique short code
-4. Stores the URL in MySQL
-5. Stores the mapping in Redis
-6. Returns the generated short code
-
 ---
 
-## 2. Redirect
+# ⚡ Redirect Flow
 
-```http
-GET /{shortCode}
-```
-
-Example:
+The redirect path is optimized around Redis caching.
 
 ```text
-http://localhost:8081/aB91xZ
+GET /{shortCode}
+        │
+        ▼
+      Redis
+      /   \
+    HIT   MISS
+     │      │
+     │      ▼
+     │    MySQL
+     │      │
+     │      ▼
+     │    Redis
+     │      │
+     └──────┘
+        │
+        ▼
+ Publish Click Event
+        │
+        ▼
+ Redirect to Original URL
 ```
-
-The service resolves the short code and redirects the client to the original URL.
 
 ### Cache Hit
 
@@ -177,10 +184,13 @@ Nginx
 Spring Boot
   │
   ▼
-Redis ──────► Original URL
+Redis
   │
   ▼
-Redirect
+Original URL
+  │
+  ▼
+HTTP Redirect
 ```
 
 ### Cache Miss
@@ -192,7 +202,7 @@ Client
 Spring Boot
   │
   ▼
-Redis ──────► MISS
+Redis → MISS
   │
   ▼
 MySQL
@@ -204,136 +214,64 @@ Redis SET
 Publish Click Event
   │
   ▼
-Redirect
+HTTP Redirect
 ```
+
+This keeps frequently accessed URLs away from the database and reduces database load.
 
 ---
 
-## 3. Get URLs
+# 🧠 Distributed ID Generation
 
-```http
-GET /api/v1/url?page=0&size=50
-```
+Generating short codes using a local counter becomes problematic when multiple application instances are running.
 
-Supports pagination.
-
-Maximum page size:
+For example:
 
 ```text
-100
+App 1 → ID 100
+App 2 → ID 100   ❌ Collision
+App 3 → ID 100   ❌ Collision
 ```
 
----
+This project uses **Apache ZooKeeper** as a distributed coordination mechanism for ID allocation.
 
-## 4. Get URL by ID
-
-```http
-GET /api/v1/url/id/{id}
+```text
+                 ZooKeeper Cluster
+                        │
+              Distributed Coordination
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+        App 1         App 2         App 3
+          │             │             │
+          └─────────────┼─────────────┘
+                        ▼
+                    Unique ID
+                        │
+                        ▼
+                   Base62 Encode
+                        │
+                        ▼
+                   Short Code
 ```
+
+The resulting ID is converted into a compact Base62 representation.
 
 Example:
 
-```http
-GET /api/v1/url/id/100
-```
-
----
-
-## 5. Delete URL
-
-```http
-DELETE /api/v1/url/delete/{id}
-```
-
-The delete operation removes the corresponding Redis entry and then deletes the database record.
-
----
-
-# ⚡ Caching Strategy
-
-Redis is used as the first lookup layer for redirects.
-
 ```text
-              Short Code
-                   │
-                   ▼
-                Redis
-               /     \
-            HIT       MISS
-             │          │
-             ▼          ▼
-         Original     MySQL
-            URL          │
-                         ▼
-                       Redis
-                         │
-                         ▼
-                  Original URL
+123456
+   ↓
+Base62
+   ↓
+w7E
 ```
-
-This reduces repeated database queries for frequently accessed URLs.
-
-### Negative Caching
-
-The application also caches information about unknown short codes.
-
-```text
-GET /invalidCode
-       │
-       ▼
-    Redis
-       │
-     MISS
-       │
-       ▼
-    MySQL
-       │
-    NOT FOUND
-       │
-       ▼
- Cache negative result
-       │
-       ▼
-    404 Response
-```
-
-This prevents repeated requests for the same invalid short code from continuously reaching MySQL.
-
----
-
-# 🆔 Distributed Short-Code Generation
-
-ZooKeeper is used as the distributed coordination layer for ID allocation across multiple application instances.
-
-Conceptually:
-
-```text
-                ZooKeeper Cluster
-                       │
-             Distributed Coordination
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-        App 1        App 2        App 3
-          │            │            │
-          └────────────┼────────────┘
-                       ▼
-                 Unique ID
-                       │
-                       ▼
-                  Base62 Encode
-                       │
-                       ▼
-                  Short Code
-```
-
-This prevents multiple application instances from relying on independent in-memory counters.
 
 ---
 
 # ⚖️ Horizontal Scaling
 
-The application currently runs **five Spring Boot instances** behind Nginx.
+The application layer runs multiple Spring Boot instances behind Nginx.
 
 ```text
                      Nginx
@@ -348,14 +286,12 @@ The application currently runs **five Spring Boot instances** behind Nginx.
                  App 4 / App 5
 ```
 
-Nginx distributes incoming requests across the application instances.
-
-### Why this matters
+This allows the application layer to scale horizontally.
 
 Instead of:
 
 ```text
-Client → One Spring Boot Instance
+Client → One Application Instance
 ```
 
 the architecture becomes:
@@ -373,7 +309,7 @@ Load Balancer
    └── App 5
 ```
 
-This allows the application layer to scale horizontally.
+Because the application instances are designed to be stateless, traffic can be distributed between them.
 
 ---
 
@@ -386,47 +322,120 @@ The Docker environment contains:
 * Replication initialization container
 * Persistent Docker volumes
 
-Architecture:
-
 ```text
-                    ┌──────────────────┐
-                    │  MySQL Primary   │
-                    │   READ / WRITE   │
-                    └────────┬─────────┘
-                             │
-                         Replication
-                             │
-                             ▼
-                    ┌──────────────────┐
-                    │  MySQL Replica   │
-                    │    READ ONLY     │
-                    └──────────────────┘
+                 ┌────────────────────┐
+                 │   MySQL Primary    │
+                 │    READ / WRITE    │
+                 └─────────┬──────────┘
+                           │
+                       Replication
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │   MySQL Replica    │
+                 │     READ ONLY      │
+                 └────────────────────┘
 ```
 
-The Spring Boot application is configured with separate primary and replica datasource URLs.
+The application is configured with separate datasource URLs for the primary and replica databases.
+
+This provides a foundation for separating read-heavy workloads from write operations.
+
+---
+
+# ⚡ Redis Caching
+
+Redis acts as the first lookup layer for short-code resolution.
+
+```text
+                 Short Code
+                      │
+                      ▼
+                   Redis
+                  /     \
+               HIT       MISS
+                │          │
+                ▼          ▼
+          Original URL   MySQL
+                           │
+                           ▼
+                         Redis
+```
+
+### Why Redis?
+
+URL shorteners are typically **read-heavy systems**.
+
+A popular short URL may be requested many more times than it is created.
+
+Without caching:
+
+```text
+Request
+   ↓
+Application
+   ↓
+MySQL
+```
+
+With caching:
+
+```text
+Request
+   ↓
+Application
+   ↓
+Redis
+   ↓
+Original URL
+```
+
+This reduces repeated database queries.
+
+---
+
+# 🚫 Negative Caching
+
+The system also supports caching failed lookups.
+
+For example:
+
+```text
+GET /doesNotExist
+        │
+        ▼
+      Redis
+        │
+      MISS
+        │
+        ▼
+      MySQL
+        │
+     NOT FOUND
+        │
+        ▼
+ Cache negative result
+        │
+        ▼
+      404
+```
+
+Without negative caching, a client repeatedly requesting the same invalid short code could continuously hit MySQL.
+
+Negative caching helps protect the database from this type of traffic.
 
 ---
 
 # 🚦 Rate Limiting
 
-URL creation is rate-limited by client IP.
+URL creation requests are rate-limited by client IP.
 
 Current configuration:
 
-```properties
-rate-limit.create.max-requests=10
-rate-limit.create.window-seconds=60
-```
-
-Therefore, the current configuration allows:
-
 ```text
-10 URL creation requests
-per client
-per 60 seconds
+Maximum Requests: 10
+Window:           60 seconds
 ```
-
-The API also exposes rate-limit headers and returns `Retry-After` when the limit is exceeded.
 
 Example:
 
@@ -436,54 +445,156 @@ X-RateLimit-Remaining: 0
 Retry-After: 42
 ```
 
+This helps prevent excessive URL creation requests from a single client.
+
 ---
 
 # 📊 Click Analytics
 
-Redirect requests publish click events instead of synchronously updating the database for every request.
+Redirect requests should remain lightweight.
 
-```text
-                  Redirect Request
-                         │
-                         ▼
-                    Resolve URL
-                         │
-                         ▼
-                  Publish Event
-                         │
-                         ▼
-                  Async Worker
-                         │
-                         ▼
-                  Update Analytics
-```
-
-This keeps the redirect path lightweight.
-
-Instead of:
+Instead of synchronously updating the database on every redirect:
 
 ```text
 Redirect
    │
-   ├── Redis
-   ├── MySQL
-   └── MySQL UPDATE clicks
+   ├── Resolve URL
+   ├── MySQL UPDATE
+   └── Redirect
 ```
 
-the target architecture is closer to:
+the architecture moves click processing toward asynchronous processing:
 
 ```text
-Redirect
-   │
-   ├── Redis
-   └── Event Queue / Stream
-              │
-              ▼
-        Async Processing
-              │
-              ▼
-          Analytics DB
+Redirect Request
+       │
+       ▼
+ Resolve Short Code
+       │
+       ▼
+ Publish Click Event
+       │
+       ▼
+ Async Consumer
+       │
+       ▼
+ Update Analytics
 ```
+
+This prevents analytics writes from unnecessarily increasing latency on the redirect path.
+
+The architecture can later be extended using technologies such as:
+
+```text
+Kafka
+Redis Streams
+RabbitMQ
+```
+
+---
+
+# 🌐 API
+
+## Create Short URL
+
+```http
+POST /api/v1/url
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "name": "Google",
+  "url": "https://www.google.com"
+}
+```
+
+Response:
+
+```json
+{
+  "shortCode": "aB91xZ"
+}
+```
+
+---
+
+## Redirect
+
+```http
+GET /{shortCode}
+```
+
+Example:
+
+```text
+http://localhost:8081/aB91xZ
+```
+
+The server resolves the short code and redirects the client to the original URL.
+
+---
+
+## Get URLs
+
+```http
+GET /api/v1/url?page=0&size=50
+```
+
+Supports pagination.
+
+Maximum page size:
+
+```text
+100
+```
+
+---
+
+## Get URL by ID
+
+```http
+GET /api/v1/url/id/{id}
+```
+
+Example:
+
+```http
+GET /api/v1/url/id/100
+```
+
+---
+
+## Delete URL
+
+```http
+DELETE /api/v1/url/delete/{id}
+```
+
+The corresponding cached mapping is removed along with the database record.
+
+---
+
+# 🧰 Tech Stack
+
+| Technology               | Purpose                         |
+| ------------------------ | ------------------------------- |
+| **Java 25**              | Application runtime             |
+| **Spring Boot**          | Backend framework               |
+| **Spring Data JPA**      | Database persistence            |
+| **MySQL**                | Persistent storage              |
+| **Redis**                | Caching                         |
+| **Apache ZooKeeper**     | Distributed coordination        |
+| **Nginx**                | Reverse proxy / load balancing  |
+| **Docker**               | Containerization                |
+| **Docker Compose**       | Distributed local environment   |
+| **k6**                   | Load testing                    |
+| **Maven**                | Build and dependency management |
+| **Spring Boot Actuator** | Monitoring / health endpoints   |
+
+The project's Maven configuration includes Spring Boot, JPA, MySQL, Redis, ZooKeeper/Curator, and Actuator dependencies.
 
 ---
 
@@ -494,13 +605,13 @@ Redirect
 Install:
 
 * Java 25
-* Docker Desktop / Docker Engine
+* Docker
 * Docker Compose
 * Git
 
 ---
 
-## Clone Repository
+## 1. Clone the Repository
 
 ```bash
 git clone https://github.com/callmeSHREYAS/url_shortner.git
@@ -512,7 +623,7 @@ cd url_shortner
 
 ---
 
-## Start the Complete Stack
+## 2. Start the Complete Stack
 
 ```bash
 docker compose up --build
@@ -521,23 +632,25 @@ docker compose up --build
 The Docker Compose environment starts:
 
 ```text
-MySQL
+MySQL Primary
 MySQL Replica
 Redis
-App 1
-App 2
-App 3
-App 4
-App 5
+Spring Boot App 1
+Spring Boot App 2
+Spring Boot App 3
+Spring Boot App 4
+Spring Boot App 5
 Nginx
 ZooKeeper 1
 ZooKeeper 2
 ZooKeeper 3
 ```
 
+The repository's Compose configuration defines the MySQL primary/replica, Redis, five application containers, Nginx, and a three-node ZooKeeper setup.
+
 ---
 
-## Check Containers
+## 3. Check Running Containers
 
 ```bash
 docker compose ps
@@ -545,7 +658,21 @@ docker compose ps
 
 ---
 
-## Stop Containers
+## 4. View Logs
+
+```bash
+docker compose logs -f
+```
+
+For a particular service:
+
+```bash
+docker compose logs -f app1
+```
+
+---
+
+## 5. Stop the Application
 
 ```bash
 docker compose down
@@ -553,25 +680,59 @@ docker compose down
 
 ---
 
-## Stop and Remove Volumes
+## 6. Remove Containers and Volumes
 
 ```bash
 docker compose down -v
 ```
 
-> ⚠️ The current Docker Compose configuration contains development credentials. These should be moved to environment variables or a proper secrets manager before production deployment.
+> ⚠️ This removes the persistent Docker volumes and therefore deletes the local database data.
+
+---
+
+# 🔍 Useful Docker Commands
+
+Check all containers:
+
+```bash
+docker ps
+```
+
+Enter the Redis container:
+
+```bash
+docker exec -it redis-url-shortner redis-cli
+```
+
+Enter ZooKeeper:
+
+```bash
+docker exec -it zookeeper-1 bash
+```
+
+Check ZooKeeper containers:
+
+```bash
+docker ps | grep zookeeper
+```
+
+Inspect application logs:
+
+```bash
+docker logs -f url-shortner-1
+```
 
 ---
 
 # 🧪 Load Testing
 
-The project contains a `k6` directory for load testing.
+The repository contains a `k6/` directory for load-testing scenarios.
 
-The purpose of load testing is to evaluate:
+Load testing can be used to measure:
 
 * Requests per second
 * Redirect latency
-* Cache-hit performance
+* Redis cache performance
 * Database pressure
 * CPU utilization
 * Memory utilization
@@ -579,13 +740,17 @@ The purpose of load testing is to evaluate:
 * Behavior under traffic spikes
 * Failure behavior
 
-Example workflow:
+Example:
 
 ```bash
 docker compose up --build
 ```
 
-Then execute the relevant k6 script from the `k6/` directory.
+Then execute the appropriate k6 script from:
+
+```text
+k6/
+```
 
 ---
 
@@ -626,113 +791,128 @@ url_shortner/
 
 ---
 
-# 🔍 Design Decisions
+# 🧠 Important System Design Concepts Demonstrated
 
-## Why Redis?
+This project is primarily an exploration of distributed backend architecture.
 
-URL shorteners are generally read-heavy systems.
-
-A popular short URL may be requested thousands or millions of times.
-
-Without caching:
+### 1. Caching
 
 ```text
-Request → Application → MySQL
+Application → Redis → MySQL
 ```
 
-With Redis:
+Reduces database reads.
+
+### 2. Horizontal Scaling
 
 ```text
-Request → Application → Redis
-                            │
-                           HIT
+Nginx
+ ├── App 1
+ ├── App 2
+ ├── App 3
+ ├── App 4
+ └── App 5
 ```
 
-This reduces database load and improves redirect latency.
+Allows the application layer to scale independently.
 
----
-
-## Why Nginx?
-
-Nginx acts as the reverse proxy and load balancer.
+### 3. Database Replication
 
 ```text
-             Nginx
-               │
-     ┌─────────┼─────────┐
-     ▼         ▼         ▼
-   App 1     App 2     App 3
-```
-
-This allows multiple stateless application instances to process requests.
-
----
-
-## Why ZooKeeper?
-
-Multiple application instances need a coordinated way to allocate IDs.
-
-Using an independent counter inside each application can produce collisions.
-
-ZooKeeper provides distributed coordination so ID allocation can be coordinated across instances.
-
----
-
-## Why Asynchronous Click Events?
-
-A redirect should primarily:
-
-1. Resolve the short code
-2. Return the destination URL
-
-It should not perform an expensive database write on every request.
-
-Therefore:
-
-```text
-Redirect
+Primary
    │
    ▼
-Publish Click Event
-   │
-   ▼
-Async Processing
+Replica
 ```
 
-This separates the high-volume redirect path from analytics processing.
+Provides a foundation for read scaling and redundancy.
+
+### 4. Distributed Coordination
+
+```text
+Applications
+      │
+      ▼
+  ZooKeeper
+      │
+      ▼
+Unique IDs
+```
+
+Coordinates ID allocation across application instances.
+
+### 5. Cache-Aside Pattern
+
+```text
+Read Redis
+   │
+   ├── HIT  → Return
+   │
+   └── MISS
+         ↓
+       MySQL
+         ↓
+      Redis SET
+```
+
+### 6. Asynchronous Processing
+
+```text
+Request
+   ↓
+Publish Event
+   ↓
+Async Consumer
+   ↓
+Analytics
+```
+
+### 7. Load Testing
+
+```text
+k6
+ ↓
+Nginx
+ ↓
+Multiple App Instances
+ ↓
+Redis / MySQL
+```
 
 ---
 
 # 📈 Scalability Roadmap
 
-The project currently demonstrates several distributed-system concepts, but there are still important steps before calling it production-ready.
+The current project demonstrates several distributed-system concepts, but there are additional improvements that can make the architecture more resilient.
 
-### Infrastructure
+## Infrastructure
 
 * [ ] Redis Sentinel / Redis Cluster
 * [ ] Highly available MySQL
 * [ ] Database connection-pool tuning
 * [ ] Database indexing review
-* [ ] Automated database backups
+* [ ] Automated backups
+* [ ] Container orchestration with Kubernetes
 
-### Event Processing
+## Event Processing
 
-* [ ] Kafka or Redis Streams
+* [ ] Kafka / Redis Streams
 * [ ] Durable click events
 * [ ] Consumer groups
-* [ ] Retry / dead-letter handling
-* [ ] Separate analytics storage
+* [ ] Retry mechanism
+* [ ] Dead-letter queue
+* [ ] Dedicated analytics storage
 
-### Reliability
+## Reliability
 
 * [ ] Circuit breakers
-* [ ] Retry policies
 * [ ] Timeout policies
+* [ ] Retry policies
 * [ ] Graceful shutdown
 * [ ] Health-aware load balancing
 * [ ] Failure recovery
 
-### Observability
+## Observability
 
 * [ ] Prometheus
 * [ ] Grafana
@@ -741,125 +921,105 @@ The project currently demonstrates several distributed-system concepts, but ther
 * [ ] Distributed tracing
 * [ ] Application dashboards
 
-### Security
+## Security
 
-* [ ] Move secrets out of Docker Compose
-* [ ] Environment-based configuration
-* [ ] API authentication
+* [ ] Move credentials to environment variables
+* [ ] Secrets management
 * [ ] HTTPS
-* [ ] Better IP/rate-limit handling behind proxies
-* [ ] Input validation hardening
-
-### Deployment
-
-* [ ] GitHub Actions CI/CD
-* [ ] Automated tests
-* [ ] Docker image publishing
-* [ ] Kubernetes deployment
-* [ ] Kubernetes HPA
-* [ ] Rolling deployments
+* [ ] API authentication
+* [ ] Better proxy-aware IP handling
+* [ ] Stronger request validation
 
 ---
 
-# 🧠 What This Project Demonstrates
+# 🔐 Security Note
 
-This project goes beyond a basic CRUD URL shortener and explores real backend/system-design concepts.
+The current Docker Compose configuration contains development credentials directly in the Compose file.
 
-### Backend
+For example:
+
+```yaml
+MYSQL_ROOT_PASSWORD: myrootpassword
+```
+
+These credentials are suitable only for local development.
+
+For production deployment, use:
+
+```text
+Environment Variables
+        or
+Docker Secrets
+        or
+Cloud Secret Manager
+```
+
+and never commit production credentials to Git.
+
+---
+
+# 📚 What I Learned
+
+This project helped me understand how a simple URL shortener evolves into a distributed system.
+
+Key concepts explored:
 
 * REST API design
 * Spring Boot
-* Spring Data JPA
-* MySQL
-* Maven
-* Request validation
-
-### Distributed Systems
-
-* Horizontal scaling
-* Distributed ID generation
-* ZooKeeper coordination
-* Database replication
-* Load balancing
-
-### Performance
-
+* JPA and MySQL
 * Redis caching
 * Cache-aside pattern
 * Negative caching
-* Asynchronous processing
+* Base62 encoding
+* Distributed ID generation
+* Apache ZooKeeper
+* MySQL replication
+* Nginx load balancing
+* Horizontal scaling
 * Rate limiting
-
-### Infrastructure
-
-* Docker
+* Asynchronous processing
+* Docker networking
 * Docker Compose
-* Nginx
-* Multi-container architecture
-
-### Testing & Monitoring
-
-* k6 load testing
-* Spring Boot Actuator
-* Performance analysis
+* Load testing with k6
+* System-design trade-offs
 
 ---
 
-# ⚠️ Current Limitations
+# 🎯 Future Goal
 
-This project should **not yet be considered a fully production-ready URL-shortening platform**.
-
-The distributed infrastructure is currently primarily intended to demonstrate and experiment with scalability and system-design concepts.
-
-Important areas still requiring hardening include:
-
-* High availability of infrastructure components
-* Production-grade Redis architecture
-* Production-grade MySQL architecture
-* Durable event processing
-* Observability
-* Secret management
-* Failure recovery
-* Automated CI/CD
-* Security hardening
-
----
-
-# 🎯 Learning Goals
-
-The main goal of this project is to understand how a simple URL shortener can evolve from:
+The long-term goal of this project is to evolve it from a locally distributed application into a more production-oriented system with:
 
 ```text
-Simple CRUD Application
-```
-
-into:
-
-```text
-                 ┌─────────────┐
-                 │    Client   │
-                 └──────┬──────┘
-                        │
-                        ▼
-                 ┌─────────────┐
-                 │    Nginx    │
-                 └──────┬──────┘
-                        │
-             ┌──────────┼──────────┐
-             ▼          ▼          ▼
-           App 1      App 2      App 3
-             │          │          │
-             └──────────┼──────────┘
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-       Redis        ZooKeeper       MySQL
+                 ┌─────────────────────┐
+                 │       Clients       │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │     Nginx     │
+                    │ Load Balancer │
+                    └───────┬───────┘
+                            │
+                ┌───────────┼───────────┐
+                ▼           ▼           ▼
+              App 1       App 2       App N
+                │           │           │
+                └───────────┼───────────┘
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+            Redis       ZooKeeper       MySQL
+                                        /    \
+                                   Primary   Replica
                                       │
                                       ▼
-                                  Replica
+                                Event Stream
+                                      │
+                                      ▼
+                                  Analytics
 ```
 
-The project is therefore mainly an exploration of **backend scalability, distributed systems, caching, database architecture, and system design**.
+The focus is not simply making the API work, but understanding **how the system behaves when traffic, data, and application instances increase.**
 
 ---
 
@@ -869,6 +1029,12 @@ The project is therefore mainly an exploration of **backend scalability, distrib
 
 GitHub: [@callmeSHREYAS](https://github.com/callmeSHREYAS)
 
+Repository: [url_shortner](https://github.com/callmeSHREYAS/url_shortner)
+
 ---
 
-⭐ If you find the project useful for learning backend engineering and system design, consider giving the repository a star.
+## ⭐ If you found this project useful
+
+Feel free to explore the repository, raise issues, or suggest improvements.
+
+Built to learn **backend engineering + distributed systems + system design**.
