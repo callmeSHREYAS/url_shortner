@@ -14,6 +14,13 @@ services:
     ports:
       - "3306:3306"
 
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+
     volumes:
       - mysql-data:/var/lib/mysql
 
@@ -31,6 +38,50 @@ services:
     ports:
       - "6379:6379"
 
+  mysql-replica:
+    image: mysql:latest
+    container_name: mysql-url-shortner-replica
+
+    restart: always
+
+    environment:
+      MYSQL_ROOT_PASSWORD: myrootpassword
+      MYSQL_DATABASE: url_db
+
+    ports:
+      - "3307:3306"
+
+    command:
+      - --server-id=2
+      - --relay-log=mysql-relay-bin
+      - --read-only=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+
+    volumes:
+      - mysql-replica-data:/var/lib/mysql
+
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-pmyrootpassword" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql-replication-init:
+    image: mysql:latest
+    container_name: mysql-replication-init
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: myrootpassword
+      REPLICATION_PASSWORD: replicationpassword
+    volumes:
+      - ./docker/mysql/configure-replication.sh:/configure-replication.sh:ro
+    entrypoint: [ "sh", "/configure-replication.sh" ]
+
   app1:
     build:
       context: .
@@ -43,6 +94,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+      mysql-replication-init:
+        condition: service_completed_successfully
 
     expose:
       - "8081"
@@ -50,9 +105,12 @@ services:
     environment:
       SERVER_PORT: 8081
       INSTANCE_NAME: APP-1
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_REPLICA_URL: jdbc:mysql://mysql-replica:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_PRIMARY_USERNAME: root
+      SPRING_DATASOURCE_PRIMARY_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_REPLICA_USERNAME: root
+      SPRING_DATASOURCE_REPLICA_PASSWORD: myrootpassword
 
   app2:
     build:
@@ -66,6 +124,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+      mysql-replication-init:
+        condition: service_completed_successfully
 
     expose:
       - "8081"
@@ -73,9 +135,12 @@ services:
     environment:
       SERVER_PORT: 8081
       INSTANCE_NAME: APP-2
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_REPLICA_URL: jdbc:mysql://mysql-replica:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_PRIMARY_USERNAME: root
+      SPRING_DATASOURCE_PRIMARY_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_REPLICA_USERNAME: root
+      SPRING_DATASOURCE_REPLICA_PASSWORD: myrootpassword
 
 
   app3:
@@ -90,6 +155,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+      mysql-replication-init:
+        condition: service_completed_successfully
 
     expose:
       - "8081"
@@ -97,9 +166,12 @@ services:
     environment:
       SERVER_PORT: 8081
       INSTANCE_NAME: APP-3
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_REPLICA_URL: jdbc:mysql://mysql-replica:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_PRIMARY_USERNAME: root
+      SPRING_DATASOURCE_PRIMARY_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_REPLICA_USERNAME: root
+      SPRING_DATASOURCE_REPLICA_PASSWORD: myrootpassword
 
   app4:
     build:
@@ -113,6 +185,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+      mysql-replication-init:
+        condition: service_completed_successfully
 
     expose:
       - "8081"
@@ -120,9 +196,12 @@ services:
     environment:
       SERVER_PORT: 8081
       INSTANCE_NAME: APP-4
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_REPLICA_URL: jdbc:mysql://mysql-replica:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_PRIMARY_USERNAME: root
+      SPRING_DATASOURCE_PRIMARY_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_REPLICA_USERNAME: root
+      SPRING_DATASOURCE_REPLICA_PASSWORD: myrootpassword
 
   app5:
     build:
@@ -136,6 +215,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+      mysql-replication-init:
+        condition: service_completed_successfully
 
     expose:
       - "8081"
@@ -143,9 +226,12 @@ services:
     environment:
       SERVER_PORT: 8081
       INSTANCE_NAME: APP-5
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_REPLICA_URL: jdbc:mysql://mysql-replica:3306/url_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_PRIMARY_USERNAME: root
+      SPRING_DATASOURCE_PRIMARY_PASSWORD: myrootpassword
+      SPRING_DATASOURCE_REPLICA_USERNAME: root
+      SPRING_DATASOURCE_REPLICA_PASSWORD: myrootpassword
 
 
 
@@ -212,6 +298,7 @@ services:
 
 volumes:
   mysql-data:
+  mysql-replica-data:
   zookeeper1-data:
   zookeeper1-datalog:
   zookeeper2-data:

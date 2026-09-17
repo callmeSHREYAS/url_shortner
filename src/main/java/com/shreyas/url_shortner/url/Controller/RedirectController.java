@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.shreyas.url_shortner.url.URL;
 import com.shreyas.url_shortner.url.UrlRepository;
@@ -29,6 +30,7 @@ public class RedirectController {
 
     // GET: Redirect short code to original target URL
     @GetMapping("/{shortCode:[A-Za-z0-9]+}")
+    @Transactional(readOnly = true)
     public RedirectView redirect(@PathVariable String shortCode) {
 
         // 1. Check Redis

@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.shreyas.url_shortner.url.URL;
 import com.shreyas.url_shortner.url.UrlRepository;
@@ -94,6 +95,7 @@ public class Controller {
 
     // GET: Retrieve URLs page by page
     @GetMapping
+    @Transactional(readOnly = true)
     public Page<UrlResponse> getAllURl(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
@@ -113,6 +115,7 @@ public class Controller {
 
     // GET: Retrieve specific URL by ID
     @GetMapping("/id/{id}")
+    @Transactional(readOnly = true)
     public UrlResponse getUrlByID(@PathVariable Long id) {
         return urlRepository.findById(id)
                 .map(urlDtoMapper::toResponse)
